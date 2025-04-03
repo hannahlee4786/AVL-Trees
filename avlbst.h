@@ -138,6 +138,7 @@ protected:
 
     // Add helper functions here
     virtual void balanceTree(AVLNode<Key, Value>* node);
+    virtual int height(AVLNode<Key, Value>* node) const;
     // Rotation functions
     virtual void rotationRight(AVLNode<Key, Value>* node);
     virtual void rotationRL(AVLNode<Key, Value>* node);
@@ -154,12 +155,12 @@ void AVLTree<Key, Value>::insert (const std::pair<const Key, Value> &new_item)
 {
     // Add element to the root if tree is empty
     if (this->root_ == nullptr) {
-        this->root_ = new Node<Key, Value>(new_item.first, new_item.second, nullptr);
+        this->root_ = new AVLNode<Key, Value>(new_item.first, new_item.second, nullptr);
         return;
     }
 
-    Node<Key, Value>* current = static_cast<AVLNode<Key, Value>*>(this->root_);
-    Node<Key, Value>* parent = nullptr;
+    AVLNode<Key, Value>* current = static_cast<AVLNode<Key, Value>*>(this->root_);
+    AVLNode<Key, Value>* parent = nullptr;
 
     // Find the parent node for new_item
     while (current != nullptr) {
@@ -168,21 +169,22 @@ void AVLTree<Key, Value>::insert (const std::pair<const Key, Value> &new_item)
         // Key exists, update the value to new_item's value
         if (new_item.first == current->getKey()) {
             current->setValue(new_item.second);
+            return;
         }
         // Key doesn't exist, keyValuePair's value is less than current node's value
         // Go to left subtree
         else if (new_item.first < current->getKey()) {
-            parent = current->getLeft();
+            current = current->getLeft();
         }
         // Key doesn't exist, keyValuePair's value is greater than current node's value
         // Go to right subtree
         else {
-            parent = current->getRight();
+            current = current->getRight();
         }
     }
 
     // Create the new node to add
-    Node<Key, Value>* newNode = new Node<Key, Value>(new_item.first, new_item.second, parent);
+    AVLNode<Key, Value>* newNode = new AVLNode<Key, Value>(new_item.first, new_item.second, parent);
 
     if (new_item.first < parent->getKey()) {
         parent->setLeft(newNode);
@@ -203,7 +205,7 @@ void AVLTree<Key, Value>::insert (const std::pair<const Key, Value> &new_item)
 template<class Key, class Value>
 void AVLTree<Key, Value>:: remove(const Key& key)
 {
-    Node<Key, Value>* nodeToRemove = static_cast<AVLNode<Key, Value>*>(this->internalFind(key));
+    AVLNode<Key, Value>* nodeToRemove = static_cast<AVLNode<Key, Value>*>(this->internalFind(key));
     // Node with key is not in the tree, return
     if (nodeToRemove == nullptr) {
         return;
@@ -211,7 +213,7 @@ void AVLTree<Key, Value>:: remove(const Key& key)
 
     // Case 1: Node has two children
     if ((nodeToRemove->getLeft() != nullptr) && (nodeToRemove->getRight() != nullptr)) {
-        Node<Key, Value>* pred = static_cast<AVLNode<Key, Value>*>(this->predecessor(nodeToRemove));
+        AVLNode<Key, Value>* pred = static_cast<AVLNode<Key, Value>*>(this->predecessor(nodeToRemove));
         // Swap nodeToRemove with predecessor if it exists
         if (pred) {
             nodeSwap(nodeToRemove, pred);
@@ -219,8 +221,8 @@ void AVLTree<Key, Value>:: remove(const Key& key)
     }
 
     // Case 2: Node has one or no children
-    Node<Key, Value>* child = nodeToRemove->getLeft() ? nodeToRemove->getLeft() : nodeToRemove->getRight();
-    Node<Key, Value>* parent = nodeToRemove->getParent();
+    AVLNode<Key, Value>* child = nodeToRemove->getLeft() ? nodeToRemove->getLeft() : nodeToRemove->getRight();
+    AVLNode<Key, Value>* parent = nodeToRemove->getParent();
 
     if (nodeToRemove == this->root_) {
         this->root_ = child;
@@ -251,15 +253,15 @@ template<class Key, class Value>
 void AVLTree<Key, Value>::balanceTree(AVLNode<Key, Value>* node) {
     while (node != nullptr) {
         // Find the balance factor for the current node
-        int balance = getHeight(node->getLeft()) - getHeight(node->getRight());
+        int balance = height(node->getLeft()) - height(node->getRight());
 
         node->setBalance(balance);
 
         // More in the left
         if (balance > 1) { 
-            // LL-rotation needed
-            if (getHeight(node->getLeft()->getLeft()) >= getHeight(node->getLeft()->getRight())) {
-                rotationLeft(node);
+            // RR-rotation needed
+            if (height(node->getLeft()->getLeft()) >= height(node->getLeft()->getRight())) {
+                rotationRight(node);
             } 
             // LR-rotation needed
             else {
@@ -268,9 +270,9 @@ void AVLTree<Key, Value>::balanceTree(AVLNode<Key, Value>* node) {
         } 
         // More in the right
         else if (balance < -1) {
-            // RR-rotation needed
-            if (getHeight(node->getRight()->getRight()) >= getHeight(node->getRight()->getLeft())) {
-                rotationRight(node);
+            // LL-rotation needed
+            if (height(node->getRight()->getRight()) >= height(node->getRight()->getLeft())) {
+                rotationLeft(node);
             } 
             // RL-rotation needed
             else {
@@ -297,9 +299,11 @@ void AVLTree<Key, Value>::rotationRight(AVLNode<Key, Value>* node) {
 
     if (node->getParent() == nullptr) {
         this->root_ = leftChild;
-    } else if (node == node->getParent()->getLeft()) {
+    } 
+    else if (node == node->getParent()->getLeft()) {
         node->getParent()->setLeft(leftChild);
-    } else {
+    } 
+    else {
         node->getParent()->setRight(leftChild);
     }
 
@@ -325,9 +329,11 @@ void AVLTree<Key, Value>::rotationLeft(AVLNode<Key, Value>* node) {
 
     if (node->getParent() == nullptr) {
         this->root_ = rightChild;
-    } else if (node == node->getParent()->getLeft()) {
+    } 
+    else if (node == node->getParent()->getLeft()) {
         node->getParent()->setLeft(rightChild);
-    } else {
+    } 
+    else {
         node->getParent()->setRight(rightChild);
     }
 
@@ -339,6 +345,22 @@ template<class Key, class Value>
 void AVLTree<Key, Value>::rotationLR(AVLNode<Key, Value>* node) {
     rotationLeft(node->getLeft());
     rotationRight(node);
+}
+
+/**
+ * Helper function that returns height of a tree.
+ */
+template<typename Key, typename Value>
+int AVLTree<Key, Value>::height(AVLNode<Key, Value>* node) const {
+    // Empty node has no children -> no height
+    if (node == NULL) {
+        return -1;  // Height of an empty subtree is -1
+    }
+
+    int leftHeight = height(node->getLeft());
+    int rightHeight = height(node->getRight());
+
+    return std::max(leftHeight, rightHeight) + 1;
 }
 
 template<class Key, class Value>
